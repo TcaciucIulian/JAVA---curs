@@ -82,4 +82,10 @@ public class TodoData {
         }
 
     }
+
+
+    public void addItem(TodoItem item) {
+        todoItems.add(item);
+
+    }
 }
