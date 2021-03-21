@@ -30,6 +30,7 @@
                     <Button text="New..." onAction="#showNewItemDialog"/>
                 </HBox>
             </ToolBar>
+             
         </VBox>
     </top>
     <left>
