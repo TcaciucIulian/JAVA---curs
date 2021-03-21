@@ -4,11 +4,15 @@ import iulian.todolist.models.TodoData;
 import iulian.todolist.models.TodoItem;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.paint.Color;
+import javafx.util.Callback;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -28,6 +32,9 @@ public class Controller {
     private Label deadlineLabel;
     @FXML
     private BorderPane mainBorderPane;
+    @FXML
+    private ContextMenu listContextMenu;
+
 
     public void initialize() {
 //        TodoItem item1 = new TodoItem("My birthday", "Save money for my birthday", LocalDate.of(2020, Month.JUNE, 15));
@@ -43,6 +50,17 @@ public class Controller {
 //
 //        TodoData.getInstance().setTodoItems(todoItems);
 
+        listContextMenu = new ContextMenu();
+        MenuItem deleteMenuItem = new MenuItem("Delete");
+        deleteMenuItem.setOnAction(new EventHandler<ActionEvent>() {
+            @Override
+            public void handle(ActionEvent actionEvent) {
+                TodoItem item = todoListView.getSelectionModel().getSelectedItem();
+                deleteItem(item);
+            }
+        });
+        listContextMenu.getItems().addAll(deleteMenuItem);
+
         todoListView.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<TodoItem>() {
             @Override
             public void changed(ObservableValue<? extends TodoItem> observableValue, TodoItem todoItem, TodoItem t1) {
@@ -55,9 +73,45 @@ public class Controller {
             }
         });
 
-        todoListView.getItems().setAll(TodoData.getInstance().getTodoItems());
+        todoListView.setItems(TodoData.getInstance().getTodoItems());
         todoListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         todoListView.getSelectionModel().selectFirst();
+
+        todoListView.setCellFactory(new Callback<ListView<TodoItem>, ListCell<TodoItem>>() {
+            @Override
+            public ListCell<TodoItem> call(ListView<TodoItem> todoItemListView) {
+                ListCell<TodoItem> cell = new ListCell<TodoItem>() {
+                    @Override
+                    protected void updateItem(TodoItem todoItem, boolean empty) {
+                        super.updateItem(todoItem, empty);
+                        if(empty) {
+                            setText(null);
+                        } else {
+                            setText(todoItem.getShortDescription());
+                            if(todoItem.getDeadLine().equals(LocalDate.now())) {
+                                setTextFill(Color.RED);
+                            } else  if(todoItem.getDeadLine().equals(LocalDate.now().plusDays(1))) {
+                                setTextFill(Color.ORANGE);
+                            } else if(todoItem.getDeadLine().isBefore(LocalDate.now().plusDays(1))) {
+                                setTextFill(Color.GREEN);
+                            }
+                        }
+                    }
+                };
+
+                cell.emptyProperty().addListener(
+                        (obs, wasEmpty, isNowEmpty) -> {
+                            if(isNowEmpty) {
+                                cell.setContextMenu(null);
+                            } else {
+                                cell.setContextMenu(listContextMenu);
+                            }
+                }
+                );
+
+                return cell;
+            }
+        });
 
     }
 
@@ -79,9 +133,10 @@ public class Controller {
         Optional<ButtonType> result = dialog.showAndWait();
         if(result.isPresent() && result.get() == ButtonType.OK) {
             DialogController controller = fxmlLoader.getController();
-            controller.processResults();
-            todoListView.getItems().setAll(TodoData.getInstance().getTodoItems());
-            System.out.println("Ok pressed");
+            TodoItem newItem = controller.processResults();
+            todoListView.getSelectionModel().select(newItem);
+//            todoListView.getItems().setAll(TodoData.getInstance().getTodoItems());
+//            System.out.println("Ok pressed");
         } else {
             System.out.println("Cancel pressed");
         }
@@ -93,4 +148,17 @@ public class Controller {
 //        itemsDetails.setText(item.getDetails());
 //        deadlineLabel.setText(item.getDeadLine().toString());
 //    }
+
+
+    public void deleteItem(TodoItem item) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Delete TodoItem");
+        alert.setHeaderText("Delete item: " + item.getShortDescription());
+        alert.setContentText("Are you sure? Press OK to confirm, or cancel to back out");
+        Optional<ButtonType> result = alert.showAndWait();
+        if(result.isPresent() && (result.get() == ButtonType.OK)) {
+            TodoData.getInstance().deleteTodoItem(item);
+        }
+
+    }
 }
